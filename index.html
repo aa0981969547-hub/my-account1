@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Black Journal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <style>
+        body { background-color: #000; color: #fff; font-family: -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+        .bento-card { background: #1c1c1e; border-radius: 28px; padding: 20px; transition: all 0.2s; }
+        .bento-card:active { transform: scale(0.98); }
+        .active-tab { background: #fff; color: #000; border-radius: 12px; font-weight: bold; }
+        .numpad-btn { background: #2c2c2e; border-radius: 16px; height: 70px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 600; }
+        .category-btn { background: #1c1c1e; border: 1px solid #3a3a3c; border-radius: 15px; padding: 12px; text-align: center; font-size: 14px; }
+        .category-btn:active { background: #fff; color: #000; }
+    </style>
+</head>
+<body class="p-4 safe-area-bottom select-none">
+
+    <div class="bento-card mb-4 flex flex-col justify-between shadow-xl border border-gray-800">
+        <div class="flex justify-between items-start">
+            <div>
+                <p class="text-gray-500 text-xs tracking-widest uppercase">Monthly Expense</p>
+                <h1 class="text-4xl font-bold mt-1 font-mono" id="total-expense">$ 0</h1>
+            </div>
+            <div class="text-right">
+                <p class="text-gray-500 text-xs tracking-widest uppercase">Invoices</p>
+                <p class="text-xl font-medium mt-1" id="invoice-count">0 張</p>
+            </div>
+        </div>
+        <div class="flex gap-4 border-t border-gray-800/50 mt-6 pt-4 text-sm">
+            <div class="flex-1 text-center">
+                <p class="text-gray-500 text-[10px] mb-1">CASH</p>
+                <p class="font-bold" id="cash-balance">$ 0</p>
+            </div>
+            <div class="flex-1 text-center border-l border-gray-800/50">
+                <p class="text-gray-500 text-[10px] mb-1">EASYCARD</p>
+                <p class="font-bold" id="card-balance">$ 0</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-5 gap-4">
+        <div class="col-span-3 bento-card flex flex-col justify-between border border-gray-800" onclick="openNumpad()">
+            <div class="flex justify-between items-center">
+                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Record</span>
+                <div id="active-account-tag" class="text-[10px] px-2 py-0.5 border border-white rounded-full">現金</div>
+            </div>
+            <div class="py-8">
+                <p class="text-3xl font-mono font-bold text-center" id="display-amount">0</p>
+            </div>
+            <p class="text-[10px] text-center text-gray-600">TAP TO INPUT</p>
+        </div>
+
+        <div class="col-span-2 bento-card flex flex-col justify-between border border-gray-800 overflow-hidden relative">
+            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Barcode</span>
+            <div class="bg-white p-1 rounded-lg my-2 rotate-0">
+                <svg id="barcode" class="w-full"></svg>
+            </div>
+            <div class="text-[9px] text-yellow-500 font-bold">兌獎就緒 ●</div>
+        </div>
+    </div>
+
+    <div id="numpad-modal" class="fixed inset-0 bg-black z-50 p-6 hidden flex flex-col justify-end">
+        <div class="flex justify-between items-center mb-8 px-4">
+            <div class="flex bg-[#1c1c1e] p-1 rounded-xl w-32">
+                <button onclick="setAccount('現金')" id="btn-cash" class="flex-1 py-1 text-xs active-tab">現金</button>
+                <button onclick="setAccount('悠遊卡')" id="btn-card" class="flex-1 py-1 text-xs text-gray-500">悠遊卡</button>
+            </div>
+            <div class="text-5xl font-mono font-bold" id="modal-amount">0</div>
+        </div>
+        
+        <div class="grid grid-cols-3 gap-3 mb-12">
+            <div class="numpad-btn" onclick="press('1')">1</div>
+            <div class="numpad-btn" onclick="press('2')">2</div>
+            <div class="numpad-btn" onclick="press('3')">3</div>
+            <div class="numpad-btn" onclick="press('4')">4</div>
+            <div class="numpad-btn" onclick="press('5')">5</div>
+            <div class="numpad-btn" onclick="press('6')">6</div>
+            <div class="numpad-btn" onclick="press('7')">7</div>
+            <div class="numpad-btn" onclick="press('8')">8</div>
+            <div class="numpad-btn" onclick="press('9')">9</div>
+            <div class="numpad-btn text-red-500" onclick="press('C')">C</div>
+            <div class="numpad-btn" onclick="press('0')">0</div>
+            <div class="numpad-btn text-green-500" onclick="toCategory()">OK</div>
+        </div>
+    </div>
+
+    <div id="category-modal" class="fixed inset-0 bg-black z-50 p-8 hidden">
+        <h3 class="text-xl font-bold mb-8 text-center text-gray-400">選擇分類</h3>
+        <div class="grid grid-cols-2 gap-4">
+            <button onclick="save('午晚餐')" class="category-btn">🍱 午晚餐</button>
+            <button onclick="save('飲料點心')" class="category-btn">☕️ 飲料點心</button>
+            <button onclick="save('交通捷運')" class="category-btn">🚇 交通捷運</button>
+            <button onclick="save('生活用品')" class="category-btn">🛒 生活用品</button>
+            <button onclick="save('娛樂社交')" class="category-btn">🎬 娛樂社交</button>
+            <button onclick="save('其他支出')" class="category-btn">⚙️ 其他支出</button>
+        </div>
+        <button onclick="backToNumpad()" class="w-full mt-12 py-4 text-gray-500">返回修改金額</button>
+    </div>
+
+    <script>
+        let currentAmount = "0";
+        let currentAccount = "現金";
+        let records = JSON.parse(localStorage.getItem('my_journal')) || [];
+
+        // 初始化
+        window.onload = () => {
+            JsBarcode("#barcode", "/ABC1234", { format: "CODE39", displayValue: false, background: "#fff", height: 50, margin: 0 });
+            updateUI();
+        };
+
+        function updateUI() {
+            const total = records.reduce((acc, r) => acc + Number(r.amount), 0);
+            const cash = records.filter(r => r.account === '現金').reduce((acc, r) => acc + Number(r.amount), 0);
+            const card = records.filter(r => r.account === '悠遊卡').reduce((acc, r) => acc + Number(r.amount), 0);
+            
+            document.getElementById('total-expense').innerText = `$ ${total.toLocaleString()}`;
+            document.getElementById('cash-balance').innerText = `$ ${cash.toLocaleString()}`;
+            document.getElementById('card-balance').innerText = `$ ${card.toLocaleString()}`;
+            localStorage.setItem('my_journal', JSON.stringify(records));
+        }
+
+        function openNumpad() { document.getElementById('numpad-modal').classList.remove('hidden'); }
+        function setAccount(acc) {
+            currentAccount = acc;
+            document.getElementById('active-account-tag').innerText = acc;
+            document.getElementById('btn-cash').className = acc === '現金' ? 'flex-1 py-1 text-xs active-tab' : 'flex-1 py-1 text-xs text-gray-500';
+            document.getElementById('btn-card').className = acc === '悠遊卡' ? 'flex-1 py-1 text-xs active-tab' : 'flex-1 py-1 text-xs text-gray-500';
+        }
+
+        function press(key) {
+            if (key === 'C') currentAmount = "0";
+            else currentAmount = currentAmount === "0" ? key : currentAmount + key;
+            document.getElementById('modal-amount').innerText = currentAmount;
+        }
+
+        function toCategory() {
+            if (currentAmount === "0") return;
+            document.getElementById('numpad-modal').classList.add('hidden');
+            document.getElementById('category-modal').classList.remove('hidden');
+        }
+
+        function backToNumpad() {
+            document.getElementById('category-modal').classList.add('hidden');
+            document.getElementById('numpad-modal').classList.remove('hidden');
+        }
+
+        function save(cat) {
+            records.push({
+                amount: currentAmount,
+                account: currentAccount,
+                category: cat,
+                date: new Date().toISOString()
+            });
+            updateUI();
+            currentAmount = "0";
+            document.getElementById('modal-amount').innerText = "0";
+            document.getElementById('display-amount').innerText = "0";
+            document.getElementById('category-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
